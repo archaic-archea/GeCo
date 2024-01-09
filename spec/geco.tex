@@ -1,0 +1,185 @@
+\documentclass{article}
+
+\def\version{0.1 Rev 2.0}
+\def\name{Germanium Core}
+\def\sname{GeCo}
+
+\title{\name}
+\author{Lilly Anderson}
+
+\begin{document}
+\maketitle
+
+\pagebreak
+\tableofcontents
+
+\pagebreak
+\addcontentsline{toc}
+{section}{Introduction}
+\section*{Introduction}
+This is the \sname\ (\name) architectural specification v\version. This gives information on the hardware expectations of a valid \sname\ implementation.
+
+\subsection{Goals}
+\begin{itemize}
+    \item Symmetric Multi-Processing
+    \item Variable instruction length (16, 32, and 64 bit sizes)
+    \item Software managed address translation
+    \item Memory mapped IO
+\end{itemize}
+
+\section{16 Bit Encodings}
+This section describes compressed instruction encodings for \sname\ to help reduce binary sizes. We will use "CGC" to refer to 16 bit encodings in general.
+
+\subsection{Overview}
+CGC is used to compress a few different kinds of instructions, specifically common types of instructions, such as stack, thread, and global relative accesses, loading immediates, arithmetic operations, jumping, and branching. It supports 4 different encodings.
+\begin{itemize}
+    \item 
+\end{itemize}
+
+\section{32 Bit Encodings}
+
+\section{64 Bit Encodings}
+
+\section{Instructions}
+
+\section{Registers}
+The \sname\ processors support 31 different general purpose registers, and 1 register doubling as a scratch, and no-access register. There are also 256 CSR (Control/Status Register) addresses.
+
+\subsection{Definitions}
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+    Term & Read & Write \\
+    \hline
+    RAWA & Any & Any \\
+    \hline
+    RAWI & Any & Ignored \\
+    \hline
+    RAWL & Any & Legal \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{Main Registers}
+Main registers are intended to be used for general processing.
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+    Register ID & Name & Use \\
+    \hline
+    0b00000 & Zero/Scratch & Will read zero\footnotemark[1]\\
+    \hline
+    0b00001 & Frame pointer & Points to the start of the frame \\
+    \hline
+    0b00010 & Stack pointer & Current position in the stack \\
+    \hline
+    0b00011 & Stack base & Start of the stack in memory \\
+    \hline
+    0b00100 & Global pointer & Points to the global storage region \\
+    \hline
+    0b00101 & Thread pointer & Points to the thread storage region \\
+    \hline
+    0b00110 & Return address & Stores where to return to after a jump \\
+    \hline
+    0b00111-0b11111 & gp0-gp24 & General purpose, any use \\
+    \hline
+\end{tabular}
+\end{center}
+\footnotetext[1]{It can be read/write if the trap bit in the processor flags is set, it's state must be consistent accross traps}
+
+\subsection{Control/Status Registers}
+Contro/Status Registers are used to control aspects of the processor, or query the status of different parts of the processor.
+
+\subsubsection{CSR Listing}
+\begin{center}
+\begin{tabular}{ |c|c|c|c|c|c| }
+    \hline
+    Address & Bits & Name & Access & Minimum Mode & Section \\
+    \hline
+    0x000000 & 64 & scause & RAWI & Supervisor & 7.2 \\
+    \hline
+    0x000001 & 64 & strap & RAWA & Supervisor & 7.2 \\
+    \hline
+    0x000002 & 64 & sret & RAWA & Supervisor & 7.2 \\
+    \hline
+    0x000003 & 64 & sscratch & RAWA & Supervisor & 7.2 \\
+    \hline
+    0x010000 & 64 & memmode & RAWL & Supervisor & 8 \\
+    \hline
+    0x010014 & 64 & memscratch & RAWA & Supervisor & 8 \\
+    \hline
+\end{tabular}
+\end{center}
+
+\section{Traps}
+On a GeCo system traps serve to help handle internal errors, and external devices.
+
+\subsection{Overview}
+To provide proper access to external devices, and internal error handling, GeCo provides traps as they come in. These traps can occur due to several reasons, and can be mapped to different values.
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+    Source & Number & Reason \\
+    \hline
+    External (1) & 0x00 & MSI \\
+    External (1) & 0x02 & Timer \\
+    External (1) & 0x04 & External device \\
+    \hline
+    Internal (0) & 0x00 & Misaligned instruction \\
+    Internal (0) & 0x02 & Misaligned read \\
+    Internal (0) & 0x04 & Misaligned write \\
+    Internal (0) & 0x06 & Invalid instruction address \\
+    Internal (0) & 0x08 & Invalid read address \\
+    Internal (0) & 0x0A & Invalid write address \\
+    Internal (0) & 0x0C & Instruction page fault \\
+    Internal (0) & 0x0E & Read page fault \\
+    Internal (0) & 0x10 & Write page fault \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{CSRs}
+To allow for changing the device's state for traps there are several CSRs provided by GeCo. These CSRs can manage the trap handler address, the trap cause, the MSI source, and return address.
+
+\subsubsection{strap}
+Supervisor trap, or "strap", is a CSR used to control the virtual address of the trap handler, if virtual addressing is disabled then this address will be treated as physical.
+
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+    Bit(s) & Name & Use \\
+    \hline
+    0..62 & Strap Vaddr & Lower 63 bits of the trap handler's address \\
+    \hline
+    63 & Strap On & Enables trapping\footnotemark[1] \\
+    \hline
+\end{tabular}
+\end{center}
+\footnotetext[1]{If a trap occurs and the strap.on bit is not set, then the core may repeatedly trap until powered down, halt execution but remain powered on, or it can power down that core, if every core in a chip is powered down then the entire system must power down. Regardless of if it shuts the core down, if other cores exist the CCD (specified in 7.3) must be notified}
+
+\subsection{Core Communication Device}
+The CCD (Core Communication Device) can be used to alert other cores of new events, this acts similarly to an MSI but may be implicitly triggered by the processor, or may have implicit reactions.
+This device can be used to send IPIs, send remote fences, and change the state of other cores.
+
+\subsubsection{Layout}
+The CCD provides different regions, each region contains registers used for controlling the other cores, or the local core. It is split into 2 regions, the Core Control region (CCR), and the Core Local Buffer region (CLB).
+The CCR must always be provided at physical address 0x2000, and take up 0x2000 bytes. The CLB must be provided at physical address 0x1000, and take up 0x1000 bytes.
+\begin{center}
+Core Control Region Layout
+\begin{tabular}{ |c|c|c|c| }
+    \hline
+    Byte & Size & Name & Use \\
+    \hline
+    0x0 & 2 & Core 0 Control & Used to send a signal to the core\footnotemark[1] \\
+    \hline
+    ... & ... & ... & ... \\
+    \hline
+    0x1FF8 & 2 & Core 4095 Control & Used to send a signal to the core\footnotemark[1] \\
+    \hline
+\end{tabular}
+\end{center}
+\footnotetext[1]{If a core is not associated with that register, nothing should happen}
+
+\section{Virtual Addressing}
+
+\end{document}

@@ -1,0 +1,11 @@
+[package]
+name = "gest"
+version = "0.0.1"
+edition = "2021"
+authors = ["Arcade Wise", "Lilly Anderson"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "4.4.11"
+clap_derive = "4.4.7"

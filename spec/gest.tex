@@ -1,0 +1,269 @@
+\documentclass{article}
+
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fontspec}
+
+\setmonofont{Comic Mono}
+
+\definecolor{mGreen}{rgb}{0,0.6,0}
+\definecolor{mGray}{rgb}{0.5,0.5,0.5}
+\definecolor{mPurple}{rgb}{0.58,0,0.82}
+\definecolor{backgroundColour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{Generic}{
+    backgroundcolor=\color{backgroundColour},   
+    numberstyle=\tiny\color{mGray},
+    stringstyle=\color{mPurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,        
+    tabsize=2
+}
+
+\def\version{0.1 Rev 2.0}
+\def\name{Germanium System Table}
+\def\sname{GeST}
+
+\title{\name s}
+\author{Lilly Anderson and listed contributors}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This is the \sname\ (\name s) specification v\version. This gives information on how to discover devices, memory regions, and CPU features on a \sname\ system.
+
+\subsection{Definitions}
+Any case of "int" just means any valid integer type, or a type reference to it, and any case of "cint" refers to a constant integer value
+\begin{itemize}
+    \item i64 - 8 byte signed integer
+    \item i32 - 4 byte signed integer
+    \item i16 - 2 byte signed integer
+    \item i8 - 1 byte signed integer
+    \item u64 - 8 byte unsigned integer
+    \item u32 - 4 byte unsigned integer
+    \item u16 - 2 byte unsigned integer
+    \item u8 - 1 byte unsigned integer
+    \item {[int; cint]} - An array of (non-u16) integers with the length of cint
+\end{itemize}
+All values should be stored in little endian format, and strings should be in UTF-8 format but not null terminated.
+
+\subsection{Contributors}
+Contributors, besides Lilly Anderson, to the GeST specification and utilites include the following.
+\begin{itemize}
+    \item Arcade Wise
+\end{itemize}
+
+\pagebreak
+\section{Header Format}
+This section lays out how the GeST Header is laid out, and can be used as a reference when trying to parse the header.
+
+\subsection{Version}
+The implementation version can be used to determine compatibility, see the version encoding for information on backwards compatibility.
+Versions are encoded in the GeST Header's 'vers' section. \\
+\begin{center}
+\begin{tabular}{ |c|c|c| } 
+    \hline
+    Bit(s) & Release type & What it's for \\
+    \hline
+    Bits 0-15 & Minor Release & Bug fixes \\ 
+    \hline
+    Bits 16-30 & Major Release & Extra features \\ 
+    \hline
+    Bit 31 & Stable Release & Specifying stablilization status \\ 
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{GeST Header}
+A pointer to the GeST Header should be passed when control is handed to your program. This helps to identify where the GeST device tables can be found.
+\\
+\begin{center}
+\begin{tabular}{ |c|c|c|c| }
+    \hline
+    Byte & Size & Name & Use \\
+    \hline
+    0 & 8 & Signature & Used to verify a header's validity \\
+    \hline
+    8 & 4 & Version & Used to verify header version \\
+    \hline
+    12 & 4 & Reserved & Unused \\
+    \hline
+    16 & 8 & GDTD Pointer & Points to the GDTD structure \\
+    \hline
+\end{tabular}
+\end{center}
+
+\subsection{GDTD}
+The GDTD (Germanium Device Tree Device) is a device that handles keeping track of devices connected to the system. It should be directly attatched to the system's IO bus, and has a layout as follows. To signal the device to copy the device tree into the DMA region, you must set the DMA Size field to an integer evenly divisible by 4. To check if the copy is complete, check the last 4 bytes of the DMA Region, if it failed it will read as a End of Tree Failed token, otherwise it should read as a End of Tree Success token.
+\\
+\begin{center}
+\begin{tabular}{ |c|c|c|c|c| }
+    \hline
+    Byte & Size & Name & Use & Access \\
+    \hline
+    0 & 8 & Region & DMA region address & Write \\
+    \hline
+    8 & 8 & Size & Size of the DMA buffer & Write \\
+    \hline
+    16 & 8 & Table Size & The current size of the table\footnotemark[1] & Read \\
+    \hline
+    24 & 8 & Valid Flags & Supported GDTD flags & Read \\
+    \hline
+    32 & 8 & Flags & Current used GDTD flags\footnotemark[2] & Read/Write \\
+    \hline
+    40 & 8 & Interrupt & GDTD interrupt number & Read \\
+    \hline
+    48 & 8 & MSI Address & MSI write address & Write \\
+    \hline
+    56 & 8 & MSI Number & Number used for MSI writes & Write \\
+    \hline
+    64 & 32 & Reserved & Reserved for future use & None \\
+    \hline
+    96 & 4 & Version & GDTD version & Read \\
+    \hline
+\end{tabular}
+\end{center}
+\footnotetext[1]{Table size cannot change if hotswap is not enabled, we suggest clearing the hotswap bit before allocating the DMA region}
+\footnotetext[2]{Any unaccepted flags will be ignored by the device}
+
+The interrupt value identifies what interrupt number that the GDTD will use if a new device is added, hotswapping is enabled in the flags, and it supports it.
+The allowed GDTD flags identifies what flags are compatible with the device. The GDTD flags identifies different features and which are enabled, the layout is as follows.
+\\
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+    Bit(s) & Name & Use \\
+    \hline
+    0 & Hotswapping & Device tree changes generate an interrupt \\
+    \hline
+    1 & MSIs & Allows the device to use MSIs\footnotemark[3] \\
+    \hline
+    2..63 & Reserved & Reserved for future use \\
+    \hline
+\end{tabular}
+\end{center}
+\footnotetext[3]{MSIs will not be sent if hotswapping is not enabled}
+
+\pagebreak
+\section{GeST Device Table Bytecode}
+GeST uses a bytecode to express tables, and values. These can be split up into different tokens, each 2 bytes in size. Unless specified otherwise, all tokens must have 2 byte alignment.
+\begin{itemize}
+    \item 0x0000 - Nop, used for padding
+    \item 0x0003 - Start of table token
+    \item 0x0007 - Start of value token
+    \item 0x000B - End of table token
+    \item 0x000F - End of value token
+    \item 0x0303 - End of Tree Success token
+    \item 0x0307 - End of Tree Failure token
+    \item 0xE5NN - Type token
+\end{itemize}
+
+\subsection{Nop}
+This is purely used for padding, and should not otherwise effect the interpretation of a bytecode stream.
+
+\subsection{Table tokens}
+A Start of Table token identifies the start of a table, and must be 4 byte aligned. 
+The bytes following it should be used as follows
+\begin{itemize}
+    \item Name length - u16 identifying the length of the name, padding should not be included in the length
+    \item Parent - u32 identifying the offset backwards in bytes to get to it's parent's Start of Table token.
+    \item Name - An array of bytes for the name, must be padded with null characters to 2 bytes
+\end{itemize}
+It should be immediately followed by a u16 identifying the length of it's name, following this is a u32 identifying the offset in bytes to get to it's parent table's start token, and then a string, the end of this string must be padded with null characters to align to 2 bytes.
+This is where the table scope begins, and it can be filled with other tables, or values, type tokens can not be used here.
+To end the table scope use a End of Table token which must be 2 byte aligned.
+
+\subsection{Value tokens}
+A Start of Value token identifies the start of a table.
+The bytes following it should be used as follows
+\begin{itemize}
+    \item Name length - u16 identifying the length of the name, padding should not be included in the length
+    \item Name - An array of bytes for the name, must be padded with null characters to 2 bytes
+    \item Value type - A token identifying the type of value
+    \item Value length - u16 identifying the length of the value, padding should not be included in the length
+    \item Value - Type is specified in 'value type', size varies by type, it must be padded with null characters to 2 bytes
+\end{itemize}
+To identify the end of a value the End of Value token is used.
+
+\subsection{Type token}
+The type token can be used to identify the expected value's size and use. The type token must be 2 byte aligned.
+\begin{itemize}
+    \item 0xE503 - u8
+    \item 0xE507 - u16
+    \item 0xE50B - u32
+    \item 0xE50F - u64
+    \item 0xE523 - u8 array
+    \item 0xE52B - u32 array
+    \item 0xE52F - u64 array
+    \item 0xE533 - UTF-8 String
+\end{itemize}
+\footnote{Interpreter implementations can ignore the difference between different integer sizes and treat them as u64's, but all array sizes must be maintained.}
+
+\pagebreak
+\section{Device Table Source Language}
+The Device Table Source Language, or DeTS Lang, is a language used to describe hardware available in a system.
+
+\subsection{DeTS Keywords}
+\begin{itemize}
+    \item table - Identifies a new table, should be followed by a name in quotes, and then curly braces identifying the table's scope
+    \item int - Identifies a new integer value, must be located within a table's scope, followed by a name, type assignment, and value assignment
+    \item str - Identifies a new string value, must be located within a table's scope, and followed by a name, value assignment
+    \item arr - Identifies a new integer array value, must be located within a table's scope, followed by a name, type assignment, and value assignment
+    \item type - Identifies a type reference, should be followed by a name, and a type assignment
+\end{itemize}
+A type assignment can be defined as ": " followed by one of the following types, or a type reference 
+A value assignment can be defined as "= " followed by a constant integer, or string, and a ";".
+
+\pagebreak
+\subsection{Example}
+\begin{lstlisting}[style=Generic]
+{ Root
+    u32 version 0x01
+    arr usize reserved_mem_addr [ 0x1_0000 0x4_0000 ]
+    arr usize reserved_mem_len [ 0x2_0000 0x300 ]
+    usize io_base 0x0
+    usize io_len 0x8_0000
+
+    { Virt0
+        str compat "VirtIO"
+        usize base 0x1_0000  
+        usize size 0x1000
+    }
+
+    { Processors
+        { Core0
+            str compat "GeCo Generic"
+            { Thread0
+                usize base 0x2_0000
+                usize len 0x100
+            }
+        }
+        { Core1
+            str compat "GeCo Generic"
+            { Thread0
+                usize base 0x2_0100
+                usize len 0x100
+            }
+        }
+        { Core2
+            str compat "GeCo Generic"
+            { Thread0
+                usize base 0x2_0200
+                usize len 0x100
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\end{document}
