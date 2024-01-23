@@ -146,17 +146,19 @@ Main registers are intended to be used for general processing.
     \hline
     0b00010 & Return address & Stores where to return to after a jump \\
     \hline
-    0b00011 & Frame pointer (IDR0) & Points to the start of the frame \\
+    0b00011 & gp0 & General purpose, any use \\
     \hline
-    0b00100 & Stack pointer (IDR0) & Current position in the stack \\
+    0b00100 & Frame pointer (IDR0) & Points to the start of the frame \\
     \hline
-    0b00101 & Global pointer (IDR0) & Points to the global storage region \\
+    0b00101 & Stack pointer (IDR0) & Current position in the stack \\
     \hline
-    0b00110 & Thread pointer (IDR0) & Points to the thread storage region \\
+    0b00110 & Global pointer (IDR0) & Points to the global storage region \\
     \hline
-    0b00111-0b01111 & hgp0-hgp7 & High access general purpose, used in cgc \\
+    0b00111 & Thread pointer (IDR0) & Points to the thread storage region \\
     \hline
-    0b10000-0b11111 & gp0-gp16 & General purpose, any use \\
+    0b01000-0b01111 & hgp0-hgp7 & High access general purpose, used in cgc \\
+    \hline
+    0b10000-0b11111 & gp1-gp16 & General purpose, any use \\
     \hline
     \footnotetext[1]{It can be read/write if the trap bit in the processor flags is set, it's state must be consistent accross traps}
 \end{tabularx}
