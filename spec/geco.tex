@@ -5,6 +5,7 @@
 \def\sname{GeCo}
 
 \usepackage{tabularx}
+\usepackage{bytefield}
 
 \title{\name}
 \author{Lilly Anderson}
@@ -29,40 +30,39 @@ This is the \sname\ (\name) architectural specification v\version. This gives in
     \item Memory mapped IO
 \end{itemize}
 
+\section{Hints}
+For GeCo processors there are provided hints to help communicate to the prcoessor things about performance related issues. These hints aren't required to have any effect on architectural state\footnote{There are important exceptions to this, these cases will be explicitly mentioned when they come up.}, but must not generate a fault if their associated extension is implemented.
+
+\section{Encodings}
+Different encodings can be used in GeCo to reduce code size, and increase code efficiency. Every given version of GeCo can have its own required encodings, as well as a list of optional encodings, this helps keep standards for programms so they can quickly know if their program is supported.
+
 \section{16 Bit Encodings}
 This section describes compressed instruction encodings for \sname\ to help reduce binary sizes. We will use "CGC" to refer to 16 bit encodings in general.
 
 \subsection{Overview}
-CGC is used to compress a few different kinds of instructions, specifically common types of instructions, such as stack, thread, and global relative accesses, loading immediates, arithmetic operations, jumping, and branching. It supports 4 different encodings.
+CGC is used to compress a few different kinds of instructions, specifically common types of instructions, such as stack, thread, and global relative accesses, loading immediates, arithmetic operations, jumping, and branching. It supports 5 different encodings.
 \begin{itemize}
-    \item RelIAcc Encoding, handles relative accesses for the SP, TP, and GP registers with an offset from an immediate
-    \item ARAcc Encoding, handles Arithmetic accesses between 2 registers
-    \item AIAcc Encoding, handles Arithmetic accesses with 1 register and an immediate,
-    \item Ctrl Encoding, priviledged instructions for processor control, provides 1 register
+    \item RelIAcc Encoding (encoding 0b01), handles relative accesses for the SP, TP, and GP registers with an offset from an immediate
+    \item ARAcc Encoding (encoding 0b00), handles Arithmetic accesses between 2 registers
+    \item AIAcc Encoding (encoding 0b10), handles Arithmetic accesses with 1 register and an immediate
+    \item Ctrl Encoding (encoding 0b11), instructions for controlling or hinting things to the processor
+    \item 
 \end{itemize}
 \subsection{RelIAcc}
 The RelIAcc encoding handles relative memory accesses using an immediate as offset.
 
 \begin{center}
-\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
     \hline
-    Instruction mneumonic & Use & Format \\
+    Instruction mneumonic & Use & Format & Opcode \\
     \hline
-    cgc.lb & Loads 1 byte & cgc.lb rd, imm(ra) \\
+    cgc.ld & Loads 2 bytes & cgc.ld rd, imm(ra) & 0b00 \\
     \hline
-    cgc.ld & Loads 2 bytes & cgc.ld rd, imm(ra) \\
+    cgc.lo & Loads 8 bytes & cgc.lo rd, imm(ra) & 0b01 \\
     \hline
-    cgc.lq & Loads 4 bytes & cgc.lq rd, imm(ra) \\
+    cgc.sd & Stores 2 bytes & cgc.sd rs, imm(ra) & 0b10 \\
     \hline
-    cgc.lo & Loads 8 bytes & cgc.lo rd, imm(ra) \\
-    \hline
-    cgc.sb & Stores 1 byte & cgc.sb rs, imm(ra) \\
-    \hline
-    cgc.sd & Stores 2 bytes & cgc.sd rs, imm(ra) \\
-    \hline
-    cgc.sq & Stores 4 bytes & cgc.sq rs, imm(ra) \\
-    \hline
-    cgc.so & Stores 8 bytes & cgc.so rs, imm(ra) \\
+    cgc.so & Stores 8 bytes & cgc.so rs, imm(ra) & 0b111 \\
     \hline
 \end{tabularx}
 \end{center}
@@ -72,48 +72,172 @@ The RelIAcc encoding handles relative memory accesses using an immediate as offs
     \hline
     Bit range (inclusive) & Name & Abbreviation \\
     \hline
-    0..1 & Encoding Size & n/a \\
+    0..1 & Primary Encoding Size & n/a \\
     \hline
-    2..4 & Opcode & n/a \\
+    2..3 & Encoding & n/a \\
     \hline
-    5..6 & Address IDR & ra \\
+    4..5 & Opcode & n/a \\
     \hline
-    7..9 & Source/Destination HGP Register & rs/rd \\
+    6..7 & Address IDR & ra \\
     \hline
-    10..15 & Immediate Offset & imm \\
+    8..10 & Source/Destination HGP Register & rs/rd \\
+    \hline
+    11..15 & Immediate Offset Bits 1..5 & imm \\
+    \hline
+\end{tabularx}
+\end{center}
+
+\subsection{ARAcc}
+The ARAcc encoding handles arithmetic operations between 2 registers.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+    \hline
+    Instruction mneumonic & Use & Format & Opcode \\
+    \hline
+    cgc.add & Adds r\textsubscript{0} into r\textsubscript{1} & cgc.add r\textsubscript{0}, r\textsubscript{1} & 0b0001 \\
+    \hline
+    cgc.sub & Subtracts r\textsubscript{0} from r\textsubscript{1} & cgc.sub r\textsubscript{0}, r\textsubscript{1} & 0b0010 \\
+    \hline
+    cgc.mul & Multiplies r\textsubscript{1} by r\textsubscript{0} & cgc.mul r\textsubscript{0}, r\textsubscript{1} & 0b0011 \\
+    \hline
+    cgc.div & Divides r\textsubscript{1} by r\textsubscript{0} & cgc.div r\textsubscript{0}, r\textsubscript{1} & 0b0100 \\
+    \hline
+    cgc.not & Inverts r\textsubscript{0} and r\textsubscript{1} & cgc.not r\textsubscript{0}, r\textsubscript{1} & 0b0101 \\
+    \hline
+    cgc.srl & Shifts r\textsubscript{1} left by r\textsubscript{0} bits & cgc.srl r\textsubscript{0}, r\textsubscript{1} & 0b0110 \\
+    \hline
+    cgc.srr & Shifts r\textsubscript{1} right by r\textsubscript{0} bits & cgc.srr r\textsubscript{0}, r\textsubscript{1} & 0b0111 \\
+    \hline
+    cgc.xor & Xor's r\textsubscript{1} with r\textsubscript{0} & cgc.xor r\textsubscript{0}, r\textsubscript{1} & 0b1000 \\
+    \hline
+    cgc.and & And's r\textsubscript{1} with r\textsubscript{0} & cgc.and r\textsubscript{0}, r\textsubscript{1} & 0b1001 \\
+    \hline
+    cgc.or & Or's r\textsubscript{1} with r\textsubscript{0} & cgc.or r\textsubscript{0}, r\textsubscript{1} & 0b1010 \\
     \hline
 \end{tabularx}
 \end{center}
 
 \begin{center}
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+    \hline
+    Bit range (inclusive) & Name & Abbreviation \\
+    \hline
+    0..1 & Primary Encoding Size & n/a \\
+    \hline
+    2..3 & Encoding & n/a \\
+    \hline
+    4..7 & Opcode & n/a \\
+    \hline
+    8..9 & Reserved & n/a \\
+    \hline
+    10..12 & HGP Reg\textsubscript{0} & r\textsubscript{0} \\
+    \hline
+    13..15 & HGP Reg\textsubscript{1}/Destination Register & r\textsubscript{1}/rd \\
+    \hline
+\end{tabularx}
+\end{center}
+
+\subsection{AIAcc}
+The AIAcc encoding handles arithmetic operations between 1 register, and an immediate.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+    \hline
+    Instruction mneumonic & Use & Format & Opcode \\
+    \hline
+    cgc.addiu & Adds a non-sign extended imm to rd & cgc.addiu rd, imm & 0b000 \\
+    \hline
+    cgc.addi & Adds a sign extended imm to rd & cgc.addi rd, imm & 0b001 \\
+    \hline
+    cgc.mul & Multiplies rd by a sign extended imm & cgc.mul rd, imm & 0b010 \\
+    \hline
+    cgc.div & Divides rd by a sign extended imm & cgc.div rd, imm & 0b011 \\
+    \hline
+    cgc.srl & Shifts rd left by imm bits & cgc.srl rd, imm & 0b100 \\
+    \hline
+    cgc.srr & Shifts rd right by imm bits & cgc.srr rd, imm & 0b101 \\
+    \hline
+    cgc.xor & Xor's rd with a sign extended imm & cgc.xor rd, imm & 0b110 \\
+    \hline
+    cgc.or & Or's rd with a sign extended imm & cgc.or rd, imm & 0b111 \\
+    \hline
+\end{tabularx}
+\end{center}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+    \hline
+    Bit range (inclusive) & Name & Abbreviation \\
+    \hline
+    0..1 & Primary Encoding Size & n/a \\
+    \hline
+    2..3 & Encoding & n/a \\
+    \hline
+    4..6 & Opcode & n/a \\
+    \hline
+    7..9 & HGP Destination Register & rd \\
+    \hline
+    10..15 & Immediate Bits 0..5 & imm \\
+    \hline
+\end{tabularx}
+\end{center}
+
+\subsection{Ctrl}
+The cgc extension provides smaller ways of using hints, and control instructions to reduce code footprint. The existence of processor hints are explained in section 1.
+
+\begin{center}
 \begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
+\end{tabularx}
+\end{center}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{ |>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X| }
     \hline
-    Opcode & Instruction \\
+    Bit range (inclusive) & Name & Abbreviation \\
     \hline
-    0b000 & cgc.lb \\
+    0..1 & Primary Encoding Size & n/a \\
     \hline
-    0b001 & cgc.ld \\
+    2..3 & Encoding & n/a \\
     \hline
-    0b010 & cgc.lq \\
-    \hline
-    0b011 & cgc.lo \\
-    \hline
-    0b100 & cgc.sb \\
-    \hline
-    0b101 & cgc.sd \\
-    \hline
-    0b110 & cgc.sq \\
-    \hline
-    0b111 & cgc.so \\
+    4..15 & Opcode & n/a \\
     \hline
 \end{tabularx}
 \end{center}
 
 \section{32 Bit Encodings}
+The standard instruction size that must be supported by all implementations is 32 bits, this is to provide enough space for needed encodings, while avoiding taking up too much memory.
+Being larger than CGC, the standard 32 bit encoding is a lot more complex, and features way more twisty aspects of it's design to help keep things nice.
+
+\subsection{Encodings}
+Provided here is a list of different encodings, each will have their own diagram to attempt to show off how it's formatted.
+
+\subsection{RTRA}
+\resizebox{\textwidth}{!}{%
+    \begin{bytefield}[boxformatting={\centering\small}, bitwidth=auto, endianness=little]{64}
+        \bitheader{63, 0} \\
+        \bitbox{64}{Main field}
+    \end{bytefield}
+}
 
 \section{64 Bit Encodings}
 
-\section{Instructions}
+\section{Past 64 Bits}
+Although encodings above 64 bits are not supported at this time, we would like to provide a framework for future designs for larger encoding sizes in case the need arises. The primary encoding size field should always contain 0b11 if the encoding is more than 64 bits.
+
+\section{Out of Order Execution}
+To support performance demands of modern processors, GeCo explicitly will have support for OOE(Out of Order Execution). With OOE instructions are not guaranteed any specific order, as long as it allows data to flow as intended by the program. We support 2 methods of OOE; VLIW, and instruction reordering. 
+Both of these can allow the processor to take advantage of a pipeline for better execution.
+
+\subsection{Instruction Reordering}
+In instruction reordering, there is hardware inside the CPU that handles taking instructions, and moving them around to ensure their effects are correct, but that they run more efficiently.
+This allows the process to avoid as many empty, or somehow unused slots in the pipeline as possible. 
+The processor designers have the ultimate say in how exactly it will modify execution, as long as it doesn't change the result of the code.
+
+\subsection{VLIW}
+With VLIW the programmer defines sets of instructions which can execute in any order, these sets can be padded with nops if no other instructions can/should be executed in that set.
+Unlike Instruction Reordering, in a VLIW implementation the CPU can not arbitrarily change around execution. 
+The CPU must immediately start putting the set of instructions into the pipeline, at most the processor may attempt to reorder or ignore certain instructions in that set but may not move instructions or execute across multiple sets to avoid unexpected behaviour.
 
 \section{Registers}
 The \sname\ processors support 31 different general purpose registers, and 1 register doubling as a scratch, and no-access register. There are also 256 CSR (Control/Status Register) addresses.
@@ -173,17 +297,17 @@ Contro/Status Registers are used to control aspects of the processor, or query t
     \hline
     Address & Bits & Name & Access & Minimum Mode & Section \\
     \hline
-    0x000000 & 64 & scause & AA & Supervisor & 6.2 \\
+    0x000000 & 64 & scause & AA & Supervisor & 9.2 \\
     \hline
-    0x000001 & 64 & strap & AA & Supervisor & 6.2 \\
+    0x000001 & 64 & strap & AA & Supervisor & 9.2 \\
     \hline
-    0x000002 & 64 & sret & AA & Supervisor & 6.2 \\
+    0x000002 & 64 & sret & AA & Supervisor & 9.2 \\
     \hline
-    0x000003 & 64 & sscratch & AA & Supervisor & 6.2 \\
+    0x000003 & 64 & sscratch & AA & Supervisor & 9.2 \\
     \hline
-    0x010000 & 64 & memmode & AA & Supervisor & 7 \\
+    0x010000 & 64 & memmode & AA & Supervisor & 10 \\
     \hline
-    0x010014 & 64 & memreg & AA & Supervisor & 7 \\
+    0x010014 & 64 & memreg & AA & Supervisor & 10 \\
     \hline
 \end{tabularx}
 \end{center}
