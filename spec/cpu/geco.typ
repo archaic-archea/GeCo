@@ -1,4 +1,4 @@
-#import "conf.typ": conf
+#import "../conf.typ": conf
 #import "@preview/bytefield:0.0.3": *
 
 #set heading(numbering: "1.")
@@ -13,7 +13,7 @@
             email: "archaic.archea@gmail.com",
         ),
     ),
-    introduction: "Germanium Core, or GeCo (pronounced the same as 'gecko'), is a RISC architecture designed to support sophisticated virtual memory systems, and stray away from safer designs such as in x86, ARM, and RISC-V which have all stuck to safer hardware managed page table systems. It is 64 bit with a framework for supporting larger 128 bit systems if the need arises. It also provides out of order execution to allow processors more options when attempting to optimize execution, this is more detailed in the EPIC and Instruction Reordering sections.",
+    introduction: "Germanium Core, or GeCo (pronounced the same as 'gɛkoʊ'), is a RISC architecture designed to support sophisticated virtual memory systems, and stray away from safer designs such as in x86, ARM, and RISC-V which have all stuck to safer hardware managed page table systems. It is 64 bit with a framework for supporting larger 128 bit systems if the need arises. It also provides out of order execution to allow processors more options when attempting to optimize execution, this is more detailed in the EPIC and Instruction Reordering sections.",
     doc,
 )
 
@@ -74,4 +74,4 @@ MRAcc (Memory Relative Access) allows you to quickly access memory relative to a
 
 = Assistance
 Many people have provided assistance in editting this document and although they are not authors, it is still important to give them credit.
-- Jaiden Garcia
+- Jaiden Garcia: https://mariwa.me/contact
