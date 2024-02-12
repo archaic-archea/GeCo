@@ -1,5 +1,5 @@
 typst compile spec/geco.typ geco.pdf
 
-#xelatex spec/geco.tex
-#xelatex spec/gest.tex
-#xelatex spec/gegp.tex
+REM xelatex spec/geco.tex
+REM #xelatex spec/gest.tex
+REM #xelatex spec/gegp.tex
